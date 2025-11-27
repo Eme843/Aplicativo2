@@ -193,6 +193,85 @@ fluidPage(
                )
              )
     ),
-    tabPanel("Variables Aleatorias Continuas")
+    tabPanel("Variables Aleatorias Continuas",
+             useShinyjs(),
+             sidebarLayout(
+               sidebarPanel(
+                 selectInput("metodo_continuo", "Seleccione el método:",
+                             choices = c("Transformada Inversa" = "inversa",
+                                         "Método de Rechazo" = "rechazo")),
+                 
+                 # Panel para Transformada Inversa
+                 conditionalPanel(
+                   condition = "input.metodo_continuo == 'inversa'",
+                   selectInput("dist_continua", "Distribución:",
+                               choices = c("Exponencial" = "exponencial",
+                                           "Uniforme" = "uniforme",
+                                           "Pareto" = "pareto", 
+                                           "Weibull" = "weibull",
+                                           "Personalizada" = "personalizada")),
+                   numericInput("nval_continua", "Número de valores:", 
+                                value = 1000, min = 100, max = 100000),
+                   uiOutput("parametros_continuos_ui"),
+                   actionButton("generar_continuos", "Generar Datos", 
+                                class = "btn-success")
+                 ),
+                 
+                 # Panel para Método de Rechazo
+                 conditionalPanel(
+                   condition = "input.metodo_continuo == 'rechazo'",
+                   selectInput("dist_rechazo", "Distribución:",
+                               choices = c("Beta(2,4)" = "beta_24",
+                                           "Normal Estándar" = "normal", 
+                                           "Gamma(1.5,1)" = "gamma_15",
+                                           "Personalizada" = "personalizada_rechazo")),
+                   numericInput("nval_rechazo", "Número de valores:", 
+                                value = 1000, min = 100, max = 100000),
+                   uiOutput("parametros_rechazo_ui"),
+                   actionButton("generar_rechazo", "Generar Datos",
+                                class = "btn-success")
+                 ),
+                 
+                 br(),
+                 helpText("Transformada Inversa: X = F⁻¹(U)"),
+                 helpText("Método de Rechazo: Aceptar Y ~ g con probabilidad f(Y)/(c·g(Y))")
+               ),
+               
+               mainPanel(
+                 # Resultados para Transformada Inversa
+                 conditionalPanel(
+                   condition = "input.metodo_continuo == 'inversa'",
+                   tabsetPanel(
+                     tabPanel("Gráfica", 
+                              plotOutput("hist_continuo"),
+                              br(),
+                              h4("Estadísticas Descriptivas:"),
+                              tableOutput("estadisticas_continuas")
+                     ),
+                     tabPanel("Datos", 
+                              dataTableOutput("tabla_continuos")
+                     )
+                   )
+                 ),
+                 
+                 # Resultados para Método de Rechazo
+                 conditionalPanel(
+                   condition = "input.metodo_continuo == 'rechazo'",
+                   tabsetPanel(
+                     tabPanel("Gráfica",
+                              plotOutput("hist_rechazo"),
+                              br(),
+                              h4("Estadísticas del Método de Rechazo:"),
+                              tableOutput("estadisticas_rechazo")
+                     ),
+                     tabPanel("Datos",
+                              dataTableOutput("tabla_rechazo")
+                     )
+                   )
+                 )
+               )
+             )
+    )
   )
 )
+
