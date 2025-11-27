@@ -4,6 +4,7 @@ library(data.table)
 library(ggplot2)
 library(lubridate)
 library(tidyverse)
+library(shinyjs)
 
 # Define UI for application that draws a histogram
 fluidPage(
@@ -17,82 +18,111 @@ fluidPage(
              # Sidebar with a slider input for number of bins
              sidebarLayout(
                sidebarPanel(
-                 sliderInput("semilla",
-                             "Ingrese un valor inicial:",
-                             min=1,
-                             max=500,
-                             value = 30),
-                 sliderInput("divisor",
-                             "Ingrese un valor de m:",
-                             min=5,
-                             max=500,
-                             value = 37),
-                 sliderInput("constante",
-                             "Ingrese un valor de a:",
-                             min=10,
-                             max=500,
-                             value = 123),
-                 sliderInput("c",
-                             "Ingrese un valor de c para el método mixto:",
-                             min=1,
-                             max=500,
-                             value = 200),
-                 sliderInput("num",
-                             "Cantidad de números a generar:",
-                             min=10,
-                             max=200,
-                             value = 30),
-                 actionButton("mostrar", "Mostrar resultados",class = "btn-danger",style = "color : #F0FFF0; background-color: #EE0000; border-color: #F0FFF0", icon("eye"))
-               ),
-               # 
+                 selectInput("metodo", "Seleccione el Método", 
+                             choices = c("Congruencial Multiplicativo", "Congruencial Mixto", 
+                                         "Cuadrados Medios", "Lehmer"),
+                             selected = "Congruencial Multiplicativo"),
+                 
+                 actionButton("seleccionar", "Seleccionar", class = "btn-primary", 
+                              style = "color : #F0FFF0; background-color: #1E90FF; border-color: #1E90FF", 
+                              icon("check")),
+                 
+                 conditionalPanel(
+                   condition = "input.seleccionar > 0",
+                   uiOutput("parametros_ui"),
+                 
+    
+                   actionButton("mostrar", "Mostrar resultados", class = "btn-danger", 
+                                style = "color : #F0FFF0; background-color: #EE0000; border-color: #F0FFF0", 
+                                icon("eye"))
+                 )
+                ),
                # Show a plot of the generated distribution
                mainPanel(
+                 h4(style = "font-weight: bold;", "Números aleatorios generados:"),
+                 br(),
                  conditionalPanel(condition = "input.mostrar!=0",
-                                  h4("Tabla de resultados - Metodo congruencial multiplicativo:"),
-                                  br(), #generar una linea en blanco
-                                  tableOutput("tabla"),
+                                  div(style = "max-height: 300px; overflow-y: scroll;",
+                                      uiOutput("tabla")
+                                  ),
                                   br(),
-                                  h4("Tabla de resultados - Metodo congruencial mixto:"),
-                                  br(),
-                                  tableOutput("tabla2"),
-                                  br(),
-                                  h4("Gráfico:"),
+                                  h4(style = "font-weight: bold;", "Gráfico:"),
                                   fluidRow(
-                                    column(width=2,
-                                           numericInput("barras", "Número de barras:", value=10, min=2, max=50),
-                                    ),
-                                    column(width=5,
-                                           h5("Congruencial Multiplicativo"),
+                                    column(width = 8,
                                            plotOutput("distPlot")
-                                           
-                                    ),
-                                    column(width=5,
-                                           h5("Congruencial Mixto"),
-                                           plotOutput("HistBin")
+                                           ),
+                                    column(width = 4,
+                                           sliderInput("barras", "Número de barras para el histograma:", 
+                                                       min = 5, max = 50, value = 10)
                                     )
-                                  )
-                 )
+                                    )
+                                   )
                )
              )
     ),
     tabPanel("Integrales",
+             useShinyjs(),
              sidebarLayout(
                sidebarPanel(
                  textInput("funcion", "Ingrese la funcion a integrar:", value = "1-x"),
-                 numericInput("lim_inf", "Límite inferior del intervalo:", value = 0),
-                 numericInput("lim_sup", "Límite superior del intervalo:", value = 1),
-                 radioButtons("metodo", "Seleccione el metodo para generar los numeros aleatorios:",
-                              c("Congruencial Multiplicativo", "Congruencial Mixto")),
-                 actionButton("calcular", "Calcular Área",class = "btn-lg btn-success", style = "color : #F0FFF0; background-color: #9ACD32; border-color: #8B8B83", icon("chart-area"))
+                 
+                 fluidRow(
+                   column(7, numericInput("lim_inf", "Límite inferior del intervalo:", value = 0)),
+                   column(5, checkboxInput("inf_inf", "Límite inferior: -∞", value = FALSE))
+                 ),
+                 
+                 fluidRow(
+                   column(6, numericInput("lim_sup", "Límite superior del intervalo:", value = 1)),
+                   column(6, checkboxInput("sup_inf", "Límite superior: +∞", value = FALSE))
+                 ),
+                 
+                 radioButtons("metodo", "Seleccione el método de generación de números aleatorios:",
+                              choices = c("Congruencial Multiplicativo",
+                                          "Congruencial Mixto",
+                                          "Cuadrados Medios",
+                                          "Lehmer")),
+                 
+                 actionButton("calcular", "Calcular Área",
+                              class = "btn-lg btn-success",
+                              style = "color : #F0FFF0; background-color: #9ACD32; border-color: #8B8B83",
+                              icon("chart-area"))
                ),
                
-               # Show a plot of the generated distribution
                mainPanel(
-                 conditionalPanel( condition = "input.calcular!=0", #Boton tiene por defecto valor de 0
-                                   h4("Gráfica de la funcion a integrar:"),
-                                   plotOutput("graf_fun01"),
-                                   h4("Aproximaciòn:"),
-                                   plotOutput("graf_aprox01")
+                 conditionalPanel(
+                   condition = "input.calcular!=0",
+                   
+                   fluidRow(
+                     column(
+                       width = 8, offset = 2,
+                       h4("Gráfica de la función a integrar:"),
+                       div(
+                         style = "max-width: 100%; height: 350px; 
+                   overflow: hidden; 
+                   border: 1px solid #ddd; 
+                   padding: 10px; 
+                   margin-bottom: 25px;",
+                         plotOutput("graf_fun01", height = "320px")
+                       )
+                     )
+                   ),
+                   fluidRow(
+                     column(
+                       width = 8, offset = 2,
+                       h4("Aproximación:"),
+                       verbatimTextOutput("valores_mc"),
+                       uiOutput("nota_metodo"),
+                       
+                       br(),
+                       div(
+                         style = "max-width: 100%; height: 350px; 
+                   overflow: hidden; 
+                   border: 1px solid #ddd; 
+                   padding: 10px;",
+                         plotOutput("graf_aprox01", height = "320px")
+                       )
+                     )
+                   )
                  )
                )
              )
@@ -162,6 +192,7 @@ fluidPage(
                  )
                )
              )
-    )
-  ),
+    ),
+    tabPanel("Variables Aleatorias Continuas")
+  )
 )
