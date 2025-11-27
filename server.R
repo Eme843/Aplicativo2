@@ -166,7 +166,136 @@ fun_aceptacion_rechazo <- function(pmf, qmf) {
 }
  
 #--------------
+#============= Mateo 
 
+
+# Función general de transformada inversa para continuas
+t_inversa_continua <- function(F_inv, nval, ...) {
+  U <- runif(nval)
+  return(F_inv(U, ...))
+}
+
+# Funciones inversas para distribuciones comunes
+inversa_exponencial <- function(u, lambda) {
+  return(-log(1 - u) / lambda)
+}
+
+inversa_uniforme <- function(u, a, b) {
+  return(a + (b - a) * u)
+}
+
+inversa_pareto <- function(u, alpha, xm) {
+  return(xm / (1 - u)^(1/alpha))
+}
+
+inversa_weibull <- function(u, lambda, k) {
+  return(lambda * (-log(1 - u))^(1/k))
+}
+
+# Funcion inversa personalizada
+inversa_personalizada <- function(u, funcion_texto) {
+  tryCatch({
+    x_vals <- seq(0.001, 0.999, length.out = 1000)
+    Fx <- sapply(x_vals, function(x) {
+      eval(parse(text = funcion_texto))
+    })
+    
+    if(any(diff(Fx) < 0)) {
+      return(rep(NA, length(u)))
+    }
+    
+    approx(Fx, x_vals, xout = u, rule = 2)$y
+    
+  }, error = function(e) {
+    message("Error en la función personalizada: ", e$message)
+    return(rep(NA, length(u)))
+  })
+}
+
+# ======= MÉTODO DE RECHAZO - FUNCIONES AUXILIARES =======
+
+# Función general del método de rechazo
+metodo_rechazo <- function(nval, f_densidad, g_densidad, g_generadora, c_constante, ...) {
+  res <- numeric(nval)
+  i <- 0
+  iteraciones <- 0
+  
+  while(i < nval) {
+    Y <- g_generadora(1, ...)
+    U <- runif(1)
+    
+    if(U <= f_densidad(Y) / (c_constante * g_densidad(Y, ...))) {
+      i <- i + 1
+      res[i] <- Y
+    }
+    iteraciones <- iteraciones + 1
+  }
+  
+  return(list(datos = res, iteraciones = iteraciones, tasa_aceptacion = nval/iteraciones))
+}
+
+# Distribuciones predefinidas para el método de rechazo
+
+# 1. Beta(2,4) - usando Uniforme(0,1) como propuesta
+f_beta <- function(x) {
+  20 * x * (1 - x)^3
+}
+
+g_unif <- function(n, a = 0, b = 1) {
+  runif(n, a, b)
+}
+
+d_unif <- function(x, a = 0, b = 1) {
+  dunif(x, a, b)
+}
+
+c_beta <- 135/64  # 2.109375
+
+# 2. Normal estándar - usando Exponencial como propuesta para |Z|
+f_normal_abs <- function(x) {
+  (2/sqrt(2*pi)) * exp(-x^2/2)
+}
+
+g_exp <- function(n, rate = 1) {
+  rexp(n, rate)
+}
+
+d_exp <- function(x, rate = 1) {
+  dexp(x, rate)
+}
+
+c_normal <- sqrt(2*exp(1)/pi)  # 1.315489
+
+# 3. Gamma(1.5, 1) - usando Exponencial como propuesta
+f_gamma <- function(x) {
+  (1/gamma(1.5)) * x^(0.5) * exp(-x)
+}
+
+c_gamma <- 1.257  # Valor precalculado
+
+# 4. Distribución personalizada para método de rechazo
+rechazo_personalizado <- function(nval, f_texto, g_texto, g_gen_texto, c_valor) {
+  res <- numeric(nval)
+  i <- 0
+  iteraciones <- 0
+  
+  while(i < nval) {
+    Y <- eval(parse(text = g_gen_texto))
+    f_val <- eval(parse(text = f_texto))
+    g_val <- eval(parse(text = g_texto))
+    U <- runif(1)
+    
+    if(U <= f_val / (c_valor * g_val)) {
+      i <- i + 1
+      res[i] <- Y
+    }
+    iteraciones <- iteraciones + 1
+  }
+  
+  return(list(datos = res, iteraciones = iteraciones, tasa_aceptacion = nval/iteraciones))
+}
+
+#---------------
 
 function(input, output, session) {
   
@@ -785,5 +914,264 @@ function(input, output, session) {
     x <- sim_composicion()
     cat("Media:", mean(x), "\nVarianza:", var(x))
   })
+
+   # ================ Mateo
+   # ===== TRANSFORMADA INVERSA =====
+  
+  # UI dinámica para transformada inversa
+  output$parametros_continuos_ui <- renderUI({
+    req(input$dist_continua)
+    
+    if (input$dist_continua == "exponencial") {
+      tagList(
+        numericInput("param1_cont", "λ (tasa):", value = 1, min = 0.1, step = 0.1)
+      )
+    }
+    else if (input$dist_continua == "uniforme") {
+      tagList(
+        numericInput("param1_cont", "a (límite inferior):", value = 0),
+        numericInput("param2_cont", "b (límite superior):", value = 1)
+      )
+    }
+    else if (input$dist_continua == "pareto") {
+      tagList(
+        numericInput("param1_cont", "α (forma):", value = 2, min = 0.1, step = 0.1),
+        numericInput("param2_cont", "xm (escala):", value = 1, min = 0.1, step = 0.1)
+      )
+    }
+    else if (input$dist_continua == "weibull") {
+      tagList(
+        numericInput("param1_cont", "λ (escala):", value = 1, min = 0.1, step = 0.1),
+        numericInput("param2_cont", "k (forma):", value = 1, min = 0.1, step = 0.1)
+      )
+    }
+    else if (input$dist_continua == "personalizada") {
+      tagList(
+        textInput("funcion_personalizada_cont", "Función de distribución F(x):",
+                  placeholder = "Ej: x^2 para 0<x<1"),
+        helpText("Ingrese F(x) en términos de x. Ejemplos:"),
+        helpText("• x^2 (F(x)=x²)"),
+        helpText("• (x^2 + x)/2"),
+        helpText("• 1 - exp(-x) (exponencial)")
+      )
+    }
+  })
+  
+  # Datos para transformada inversa
+  datos_continuos <- eventReactive(input$generar_continuos, {
+    req(input$nval_continua, input$dist_continua)
+    n <- as.numeric(input$nval_continua)
+    
+    if (input$dist_continua == "exponencial") {
+      req(input$param1_cont)
+      lambda <- as.numeric(input$param1_cont)
+      datos_gen <- t_inversa_continua(inversa_exponencial, n, lambda = lambda)
+      nombre <- paste("Exponencial(λ =", lambda, ")")
+      color <- "lightblue"
+    }
+    else if (input$dist_continua == "uniforme") {
+      req(input$param1_cont, input$param2_cont)
+      a <- as.numeric(input$param1_cont)
+      b <- as.numeric(input$param2_cont)
+      datos_gen <- t_inversa_continua(inversa_uniforme, n, a = a, b = b)
+      nombre <- paste("Uniforme(a =", a, ", b =", b, ")")
+      color <- "lightgreen"
+    }
+    else if (input$dist_continua == "pareto") {
+      req(input$param1_cont, input$param2_cont)
+      alpha <- as.numeric(input$param1_cont)
+      xm <- as.numeric(input$param2_cont)
+      datos_gen <- t_inversa_continua(inversa_pareto, n, alpha = alpha, xm = xm)
+      nombre <- paste("Pareto(α =", alpha, ", xm =", xm, ")")
+      color <- "lightcoral"
+    }
+    else if (input$dist_continua == "weibull") {
+      req(input$param1_cont, input$param2_cont)
+      lambda <- as.numeric(input$param1_cont)
+      k <- as.numeric(input$param2_cont)
+      datos_gen <- t_inversa_continua(inversa_weibull, n, lambda = lambda, k = k)
+      nombre <- paste("Weibull(λ =", lambda, ", k =", k, ")")
+      color <- "lightgoldenrod"
+    }
+    else if (input$dist_continua == "personalizada") {
+      req(input$funcion_personalizada_cont)
+      datos_gen <- inversa_personalizada(runif(n), input$funcion_personalizada_cont)
+      nombre <- "Distribución Personalizada"
+      color <- "lightsteelblue"
+    }
+    
+    list(datos = datos_gen, nombre = nombre, color = color)
+  })
+  
+  # Histograma para transformada inversa
+  output$hist_continuo <- renderPlot({
+    datos <- datos_continuos()
+    req(datos$datos)
+    
+    if (all(is.na(datos$datos))) {
+      plot(1, 1, type = "n", xlab = "", ylab = "", 
+           main = "Error en la función personalizada")
+      text(1, 1, "Revise la sintaxis de la función", col = "red")
+    } else {
+      ggplot(data.frame(x = datos$datos), aes(x = x)) +
+        geom_histogram(aes(y = ..density..), bins = 30, 
+                       fill = datos$color, color = "black", alpha = 0.7) +
+        geom_density(color = "red", size = 1) +
+        labs(title = paste("Distribución de", datos$nombre),
+             x = "Valores generados", y = "Densidad") +
+        theme_minimal()
+    }
+  })
+  
+  # Estadísticas para transformada inversa
+  output$estadisticas_continuas <- renderTable({
+    datos <- datos_continuos()$datos
+    req(datos)
+    
+    if (!all(is.na(datos))) {
+      stats <- data.frame(
+        Estadística = c("Media", "Desviación Estándar", "Mínimo", "Máximo", "Cantidad"),
+        Valor = c(
+          round(mean(datos), 4),
+          round(sd(datos), 4),
+          round(min(datos), 4),
+          round(max(datos), 4),
+          length(datos)
+        )
+      )
+      stats
+    }
+  })
+  
+  # Tabla para transformada inversa
+  output$tabla_continuos <- renderDataTable({
+    datos <- datos_continuos()$datos
+    req(datos)
+    
+    if (!all(is.na(datos))) {
+      data.frame(Valor = datos)
+    }
+  }, options = list(pageLength = 10))
+  
+  # ===== MÉTODO DE RECHAZO =====
+  
+  # UI dinámica para método de rechazo
+  output$parametros_rechazo_ui <- renderUI({
+    req(input$dist_rechazo)
+    
+    if (input$dist_rechazo == "personalizada_rechazo") {
+      tagList(
+        textInput("f_densidad", "Función de densidad f(x):", 
+                  placeholder = "20*x*(1-x)^3"),
+        textInput("g_densidad", "Densidad de la distribución propuesta g(x):",
+                  placeholder = "1"),
+        textInput("g_generadora", "Generadora de g (ej: runif(1)):",
+                  placeholder = "runif(1)"),
+        numericInput("c_rechazo", "Constante c:", value = 2.0, min = 1, step = 0.1),
+        helpText("Ejemplo para Beta(2,4):"),
+        helpText("f(x): 20*x*(1-x)^3"),
+        helpText("g(x): 1"),
+        helpText("Generadora g: runif(1)"),
+        helpText("c: 2.109375")
+      )
+    } else {
+      helpText("Parámetros predefinidos para la distribución seleccionada")
+    }
+  })
+  
+  # Datos para método de rechazo
+  datos_rechazo <- eventReactive(input$generar_rechazo, {
+    req(input$dist_rechazo, input$nval_rechazo)
+    
+    n <- as.numeric(input$nval_rechazo)
+    
+    if (input$dist_rechazo == "beta_24") {
+      resultado <- metodo_rechazo(n, f_beta, d_unif, g_unif, c_beta)
+      nombre <- "Beta(2,4)"
+      color <- "lightcoral"
+    }
+    else if (input$dist_rechazo == "normal") {
+      resultado_abs <- metodo_rechazo(n, f_normal_abs, d_exp, g_exp, c_normal)
+      datos_con_signo <- resultado_abs$datos * sample(c(-1, 1), n, replace = TRUE)
+      
+      resultado <- list(
+        datos = datos_con_signo,
+        iteraciones = resultado_abs$iteraciones,
+        tasa_aceptacion = resultado_abs$tasa_aceptacion
+      )
+      nombre <- "Normal Estándar"
+      color <- "lightblue"
+    }
+    else if (input$dist_rechazo == "gamma_15") {
+      resultado <- metodo_rechazo(n, f_gamma, d_exp, g_exp, c_gamma)
+      nombre <- "Gamma(1.5, 1)"
+      color <- "lightgreen"
+    }
+    else if (input$dist_rechazo == "personalizada_rechazo") {
+      req(input$f_densidad, input$g_densidad, input$g_generadora, input$c_rechazo)
+      
+      resultado <- rechazo_personalizado(
+        n, 
+        input$f_densidad, 
+        input$g_densidad, 
+        input$g_generadora, 
+        as.numeric(input$c_rechazo)
+      )
+      nombre <- "Distribución Personalizada"
+      color <- "lightgoldenrod"
+    }
+    
+    list(
+      datos = resultado$datos,
+      nombre = nombre,
+      color = color,
+      iteraciones = resultado$iteraciones,
+      tasa_aceptacion = resultado$tasa_aceptacion
+    )
+  })
+  
+  # Histograma para método de rechazo
+  output$hist_rechazo <- renderPlot({
+    datos <- datos_rechazo()
+    req(datos$datos)
+    
+    ggplot(data.frame(x = datos$datos), aes(x = x)) +
+      geom_histogram(aes(y = ..density..), bins = 30, 
+                     fill = datos$color, color = "black", alpha = 0.7) +
+      geom_density(color = "red", size = 1) +
+      labs(title = paste("Distribución de", datos$nombre, "- Método de Rechazo"),
+           x = "Valores generados", y = "Densidad") +
+      theme_minimal()
+  })
+  
+  # Estadísticas para método de rechazo
+  output$estadisticas_rechazo <- renderTable({
+    datos <- datos_rechazo()
+    req(datos$datos)
+    
+    stats <- data.frame(
+      Estadística = c("Media", "Desviación Estándar", "Mínimo", "Máximo", 
+                      "Iteraciones totales", "Tasa de aceptación", "Cantidad"),
+      Valor = c(
+        round(mean(datos$datos), 4),
+        round(sd(datos$datos), 4),
+        round(min(datos$datos), 4),
+        round(max(datos$datos), 4),
+        datos$iteraciones,
+        paste0(round(datos$tasa_aceptacion * 100, 2), "%"),
+        length(datos$datos)
+      )
+    )
+    stats
+  })
+  
+  # Tabla para método de rechazo
+  output$tabla_rechazo <- renderDataTable({
+    datos <- datos_rechazo()$datos
+    req(datos)
+    
+    data.frame(Valor = datos)
+  }, options = list(pageLength = 10)) 
   
 }
+
