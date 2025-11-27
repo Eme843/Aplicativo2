@@ -6,25 +6,73 @@ library(lubridate)
 library(tidyverse)
 
 
+#============= Emely
+# Números Aleatorios
+
+
 #función que genera números aleatorios bajo el método congruencial multiplicativo
-random_cong <-function(a, m, x0, n){
-  res<-numeric(n+1)
-  res[1]<-x0
-  for(k in 2:length(res)){
-    res[k]<-(a*res[k-1] )%% m
+mm <- function(x0, a, m) {
+  return((a * x0) %% m)
+}
+
+mmsim <- function(x0, a, m, nsim) {
+  vec <- numeric(nsim + 1)
+  vec[1] <- x0
+  for (k in 1:nsim) {
+    vec[k + 1] <- mm(vec[k], a, m)
   }
-  return(round((res[-1])/m, 6))# para que no me devuelva la semilla
+  return((vec[-1]) / m)
 }
 
 #función que genera números aleatorios bajo el método congruencial mixto
-random_mixt <-function(a, c, m, x0, n){
-  res<-numeric(n+1)
-  res[1]<-x0
-  for(k in 2:length(res)){
-    res[k]<-(a*res[k-1]+c )%% m
-  }
-  return(round((res[-1])/m, 6))# para que no me devuelva la semilla
+mi <- function(x0, a, m, c) {
+  return((a * x0 + c) %% m)
 }
+
+mi_sim <- function(x0, a, m, c, nsim) {
+  vec <- numeric(nsim + 1)
+  vec[1] <- x0
+  for (k in 1:nsim) {
+    vec[k + 1] <- mi(vec[k], a, m, c)
+  }
+  return((vec[-1]) / m)
+}
+
+#función que genera números aleatorios bajo el método medios cuadrados
+
+mc <- function(x0, k) {
+  return(floor((x0^2 - floor((x0^2) / (10^(2 * k - k / 2))) * 10^(2 * k - k / 2)) / 10^(k / 2)))
+}
+
+mc_sim <- function(x0, k, n_sim) {
+  vec <- numeric(n_sim + 1)
+  vec[1] <- x0
+  for (j in 1:n_sim) {
+    vec[j + 1] <- mc(vec[j], k)
+  }
+  return(vec[-1] / (10^k))
+}
+
+#función que genera números aleatorios bajo el método de Lehmer
+
+ml <- function(x0, n, c) {
+  return(x0 * c - floor((x0 * c) / (10^n)) * 10^n - floor((x0 * c) / (10^n)))
+}
+
+ml_sim <- function(x0, n, c, nsim) {
+  vec <- numeric(nsim + 1)
+  vec[1] <- x0
+  for (j in 1:nsim) {
+    vec[j + 1] <- ml(x0 = vec[j], n, c)
+  }
+  return(vec[-1] / (10^n))
+}
+
+
+
+#-----------------------
+
+# Integrales
 
 generar_aleatorios_integral <- function(n, metodo) {
   if (metodo == "Congruencial Multiplicativo") {
@@ -48,6 +96,9 @@ conv_matrix(c(1,2,3,4,5,6,7,8), cols=5)
 
 as.data.frame(conv_matrix(c(1,2,3,4,5,6,7,8), cols=5))
 
+#-----------------------
+
+#============= Anita
 #FUNCIONES DE VARIABLES DISCRETAS
 #Binomial
 fun_binomial<- function(n,p){
@@ -102,8 +153,6 @@ fun_composicion <- function(pmf1, pmf2, alpha) {
   }
 }
 
-
-
 # Técnica de aceptación y rechazo
 fun_aceptacion_rechazo <- function(pmf, qmf) {
   c <- max(pmf / qmf)  # Encontrar la constante c
@@ -115,214 +164,477 @@ fun_aceptacion_rechazo <- function(pmf, qmf) {
     }
   }
 }
+ 
+#--------------
 
 
-
-# Define server logic required to draw a histogram
 function(input, output, session) {
   
-  aleatorios1 <- eventReactive(input$mostrar, {
-    random_cong(a = input$constante, m = input$divisor, x0 = input$semilla, n = input$num)
+  #======= Emely
+  
+  output$parametros_ui <- renderUI({
+    
+    # Dependiendo del método seleccionado, se mostrarán diferentes controles de entrada
+    if (input$metodo == "Congruencial Multiplicativo") {
+      tagList(
+        numericInput("semilla", "Ingrese un valor inicial:", min = 1, max = 500, value = 30),
+        numericInput("divisor", "Ingrese un valor de m:", min = 5, max = 500, value = 37),
+        numericInput("constante", "Ingrese un valor de a:", min = 10, max = 500, value = 123),
+        numericInput("num", "Cantidad de números a generar:", min = 10, max = 200, value = 30)
+      )
+    }
+    else if (input$metodo == "Congruencial Mixto") {
+      tagList(
+        numericInput("semilla", "Ingrese un valor inicial:", min = 1, max = 500, value = 30),
+        numericInput("divisor", "Ingrese un valor de m:", min = 5, max = 500, value = 37),
+        numericInput("constante", "Ingrese un valor de a:", min = 10, max = 500, value = 123),
+        numericInput("c", "Ingrese un valor de c para el método mixto:", min = 1, max = 500, value = 200),
+        numericInput("num", "Cantidad de números a generar:", min = 10, max = 200, value = 30)
+      )
+    }
+    else if (input$metodo == "Cuadrados Medios") {
+      tagList(
+        numericInput("x0", "Ingrese un valor inicial x0:", min = 1, max = 10000, value = 9311),
+        numericInput("k", "Ingrese el número de dígitos:", min = 1, max = 10, value = 4),
+        numericInput("num", "Cantidad de números a generar:", min = 10, max = 200, value = 30)
+      )
+    }
+    else if (input$metodo == "Lehmer") {
+      tagList(
+        numericInput("x0", "Ingrese un valor inicial x0:", min = 1, max = 10000, value = 4122),
+        numericInput("n", "Ingrese el número de dígitos:", min = 1, max = 10, value = 4),
+        numericInput("c", "Ingrese un valor de c:", min = 1, max = 100, value = 76),
+        numericInput("num", "Cantidad de números a generar:", min = 10, max = 200, value = 30)
+      )
+    }
   })
   
-  aleatorios2 <- eventReactive(input$mostrar, {
-    random_mixt(a = input$constante, c = input$c, m = input$divisor, x0 = input$semilla, n = input$num)
+  # Generación de aleatorios según el método seleccionado
+  aleatorios <- eventReactive(input$mostrar, {
+    if (input$metodo == "Congruencial Multiplicativo") {
+      return(mmsim(x0 = input$semilla, a = input$constante, m = input$divisor, nsim = input$num))
+    }
+    else if (input$metodo == "Congruencial Mixto") {
+      return(mi_sim(x0 = input$semilla, a = input$constante, m = input$divisor, c = input$c, nsim = input$num))
+    }
+    else if (input$metodo == "Cuadrados Medios") {
+      return(mc_sim(x0 = input$x0, k = input$k, n_sim = input$num))
+    }
+    else if (input$metodo == "Lehmer") {
+      return(ml_sim(x0 = input$x0, n = input$n, c = input$c, nsim = input$num))
+    }
   })
   
-  output$tabla <- function(){
-    res <- conv_matrix(aleatorios1())
-    kbl(res, booktabs = TRUE, escape=FALSE) %>% 
-      kable_styling(full_width = FALSE, bootstrap_options = c("bordered"), font_size = 12) %>%
-      row_spec(0, background = "#00CD00", color = "#ffffff") %>%
-      scroll_box(width = "100%", height = "200px") 
-  }
-  
-  output$tabla2 <- function(){
-    res <- conv_matrix(aleatorios2())
-    kbl(res, booktabs = TRUE, escape=FALSE) %>% 
-      kable_styling(full_width = FALSE, bootstrap_options = c("bordered"), font_size = 12) %>%
-      row_spec(0, background = "#FF4500", color = "#ffffff") %>%
-      scroll_box(width = "100%", height = "200px") 
-  }
+  output$tabla <- renderUI({
+    res <- aleatorios()
+    req(res)
+    
+    
+    num_cols <- ceiling(sqrt(length(res)))  
+    n_rows <- ceiling(length(res) / num_cols)
+    
+    res <- c(res, rep(NA, n_rows * num_cols - length(res)))
+    
+    matrix_data <- matrix(res, nrow = n_rows, ncol = num_cols, byrow = TRUE)
+    colnames(matrix_data) <- paste("Col", 1:num_cols)  
+    
+    table_html <- kbl(matrix_data, escape = FALSE) %>%
+      kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover", "bordered"), 
+                    position = "left", font_size = 14) %>%
+      row_spec(0, background = "#40E0D0", color = "white", bold = TRUE)
+    
+    # Retornar el HTML como un objeto renderizado en UI
+    HTML(table_html)
+  })
   
   output$distPlot <- renderPlot({
-    x <- aleatorios1()
+    x <- aleatorios()
     bins <- seq(min(x), max(x), length.out = input$barras + 1)
-    hist(x, breaks = bins, col = "#00CD00", border = 'white',
-         xlab = 'Numeros aleatorios generados',
-         main = 'Histograma del Método 1')
+    hist(x, breaks = bins, col = "#00CD00", border = 'white', 
+         xlab = 'Numeros aleatorios generados', 
+         main = paste('Histograma del Método: ', input$metodo),
+         ylab = 'Frecuencia')  
   })
   
-  output$distPlot2 <- renderPlot({
-    x <- aleatorios2()
-    bins <- seq(min(x), max(x), length.out = input$barras + 1)
-    hist(x, breaks = bins, col = "#FF4500", border = 'white',
-         xlab = 'Numeros aleatorios generados',
-         main = 'Histograma del Método 2')
-  })
+  #------------------
+  #Integrales
   
-  datos_integral <- eventReactive(input$calcular, {
-    x_vals <- seq(input$lim_inf, input$lim_sup, length.out = 100)
-    y_vals <- sapply(x_vals, function(x){ eval(parse(text = input$funcion)) })
-    data.frame(x = x_vals, y = y_vals)
+  generar_aleatorios_integral <- function(n, metodo) {
+    x0 <- as.numeric(format(Sys.time(), "%OS6")) %% 10000
+    
+    if (metodo == "Congruencial Multiplicativo") {
+      
+      return(mmsim(
+        x0 = x0,
+        a = 7^5,
+        m = 2^31 - 1,
+        nsim = n
+      ))
+      
+    } else if (metodo == "Congruencial Mixto") {
+      
+      return(mi_sim(
+        x0 = x0,
+        a = 7^5,
+        m = 2^31 - 1,
+        c = 12345,
+        nsim = n
+      ))
+      
+    } else if (metodo == "Cuadrados Medios") {
+      
+      x0_cm <- as.numeric(substr(x0, 1, 4))
+      return(mc_sim(
+        x0 = x0_cm,
+        k = 4,
+        n_sim = n
+      ))
+      
+    } else if (metodo == "Lehmer") {
+      
+      return(ml_sim(
+        x0 = x0 %% 10000,
+        n = 4,
+        c = 16807,
+        nsim = n
+      ))
+    }
+    
+    return(NULL)
+  }
+  
+  datos_integral <- reactive({
+    req(input$calcular)
+    
+    f <- function(x) eval(parse(text = input$funcion))
+    
+    a_inf <- ifelse(input$inf_inf, -Inf, input$lim_inf)
+    b_inf <- ifelse(input$sup_inf,  Inf,  input$lim_sup)
+    
+    if (is.infinite(a_inf) && is.infinite(b_inf)) {
+      plot_a <- -5
+      plot_b <-  5
+    } else if (is.infinite(a_inf) && !is.infinite(b_inf)) {
+      plot_b <- b_inf
+      plot_a <- b_inf - 5
+    } else if (!is.infinite(a_inf) && is.infinite(b_inf)) {
+      plot_a <- a_inf
+      plot_b <- a_inf + 5
+    } else {
+      plot_a <- a_inf
+      plot_b <- b_inf
+    }
+    
+    x_vals <- seq(plot_a, plot_b, length.out = 400)
+    y_vals <- sapply(x_vals, f)
+    
+    data.frame(
+      x      = x_vals,
+      y      = y_vals,
+      a_inf  = a_inf,
+      b_inf  = b_inf
+    )
   })
   
   # Calcular área bajo la curva (regla trapezoidal)
   area_aprox <- eventReactive(input$calcular, {
     f <- function(x) eval(parse(text = input$funcion))
-    a <- input$lim_inf
-    b <- input$lim_sup
+    a <- ifelse(input$inf_inf, -Inf, input$lim_inf)  
+    b <- ifelse(input$sup_inf, Inf, input$lim_sup)
     
-    if (b >= 99999 && a > -99999) {
-      # Integral de [a, ∞)
+    # Caso de la integral de [a, ∞)
+    if (a > -Inf && b == Inf) {
       h <- function(y) {
         if (y <= 0 || y >= 1) return(0)
-        x <- (1/y) - 1 + a
-        return(f(x) / y^2)
+        x <- (1 / y) - 1 + a
+        f(x) / y^2
       }
-      y_vals <- seq(1e-6, 1 - 1e-6, length.out = 1000)
-      delta_y <- diff(y_vals)[1]
-      area <- (delta_y / 2) * (h(y_vals[1]) + 2 * sum(sapply(y_vals[2:(length(y_vals)-1)], h)) + h(y_vals[length(y_vals)]))
+      y_vals <- seq(1e-6, 1 - 1e-6, length.out = 2000)
+      dy <- y_vals[2] - y_vals[1]
+      area <- (dy/2)*(h(y_vals[1]) +
+                        2 * sum(sapply(y_vals[2:(length(y_vals)-1)], h)) +
+                        h(y_vals[length(y_vals)]))
       return(area)
-    } else if (a <= -99999 && b < 99999) {
-      # Integral de (-∞, b]
+    }
+    # Caso de la integral de (-∞, b]
+    if (a == -Inf && b < Inf) {
       h <- function(y) {
         if (y <= 0 || y >= 1) return(0)
         x <- b - ((1 / y) - 1)
-        return(f(x) / y^2)
+        f(x) / y^2
       }
-      y_vals <- seq(1e-6, 1 - 1e-6, length.out = 1000)
-      delta_y <- diff(y_vals)[1]
-      area <- (delta_y / 2) * (h(y_vals[1]) + 2 * sum(sapply(y_vals[2:(length(y_vals)-1)], h)) + h(y_vals[length(y_vals)]))
+      y_vals <- seq(1e-6, 1 - 1e-6, length.out = 2000)
+      dy <- y_vals[2] - y_vals[1]
+      area <- (dy/2)*(h(y_vals[1]) +
+                        2 * sum(sapply(y_vals[2:(length(y_vals)-1)], h)) +
+                        h(y_vals[length(y_vals)]))
       return(area)
-    }   else if (input$lim_inf <= -99999 && input$lim_sup >= 99999) {
+    }
+    # Caso de la integral de (-∞, ∞)
+    if (a == -Inf && b == Inf) {
       h_pos <- function(y) {
         if (y <= 0 || y >= 1) return(0)
         x <- (1 / y) - 1
-        return(f(x) / y^2)
+        f(x) / y^2
       }
       h_neg <- function(y) {
         if (y <= 0 || y >= 1) return(0)
         x <- -((1 / y) - 1)
-        return(f(x) / y^2)
+        f(x) / y^2
       }
+      y_vals <- seq(1e-6, 1 - 1e-6, length.out = 2000)
+      dy <- y_vals[2] - y_vals[1]
       
-      y_vals <- seq(1e-6, 1 - 1e-6, length.out = 1000)
-      delta_y <- diff(y_vals)[1]
-      
-      area_pos <- (delta_y / 2) * (h_pos(y_vals[1]) + 2 * sum(sapply(y_vals[2:(length(y_vals)-1)], h_pos)) + h_pos(y_vals[length(y_vals)]))
-      area_neg <- (delta_y / 2) * (h_neg(y_vals[1]) + 2 * sum(sapply(y_vals[2:(length(y_vals)-1)], h_neg)) + h_neg(y_vals[length(y_vals)]))
-      
+      area_pos <- (dy/2)*(h_pos(y_vals[1]) +
+                            2 * sum(sapply(y_vals[2:(length(y_vals)-1)], h_pos)) +
+                            h_pos(y_vals[length(y_vals)]))
+      area_neg <- (dy/2)*(h_neg(y_vals[1]) +
+                            2 * sum(sapply(y_vals[2:(length(y_vals)-1)], h_neg)) +
+                            h_neg(y_vals[length(y_vals)]))
       return(area_pos + area_neg)
-    } else {
-      datos <- datos_integral()
-      delta_x <- (b - a) / (length(datos$x) - 1)
-      return((delta_x / 2) * (datos$y[1] + 2 * sum(datos$y[2:(length(datos$y) - 1)]) + datos$y[length(datos$y)]))
     }
+    
+    # Caso de la integral de [a, b]
+    datos <- datos_integral()
+    a_f <- ifelse(input$inf_inf, -Inf, input$lim_inf)
+    b_f <- ifelse(input$sup_inf,  Inf,  input$lim_sup)
+    
+    delta_x <- (b_f - a_f) / (nrow(datos) - 1)
+    return((delta_x/2) * (datos$y[1] +
+                            2 * sum(datos$y[2:(nrow(datos)-1)]) +
+                            datos$y[nrow(datos)]))
   })
-  
-  
-  
   
   # Gráfica de la función
   output$graf_fun01 <- renderPlot({
     req(input$calcular)
-    datos <- datos_integral()
-    area <- area_aprox()
+    f <- function(x) eval(parse(text = input$funcion))
     
-    datos %>%
-      ggplot(aes(x = x, y = y)) +
+    datos <- datos_integral()
+    area  <- area_aprox()
+    
+    a <- datos$a_inf[1]
+    b <- datos$b_inf[1]
+    
+    if (any(is.na(datos$y))) {
+      plot.new()
+      title("Error: la función no se pudo evaluar en algún punto.")
+      return()
+    }
+    
+    g <- ggplot(datos, aes(x = x, y = y)) +
       geom_line(color = "blue", linewidth = 1) +
-      geom_area(aes(x = x, y = y), fill = "lightblue", alpha = 0.5) +
-      geom_vline(xintercept = input$lim_inf, linetype = "dashed", color = "red") +
-      geom_vline(xintercept = input$lim_sup, linetype = "dashed", color = "red") +
+      geom_area(fill = "lightblue", alpha = 0.4) +
+      theme_minimal() +
       labs(
         title = paste("Área bajo la curva de f(x) =", input$funcion),
-        subtitle = paste("Intervalo:", input$lim_inf, "a", input$lim_sup),
-        caption = paste("Área aproximada:", round(area, 4)),
+        subtitle = ifelse(is.infinite(a) && is.infinite(b),
+                          "Intervalo: (-∞, ∞)",
+                          ifelse(is.infinite(a),
+                                 paste("Intervalo: (-∞, ", b, "]"),
+                                 ifelse(is.infinite(b),
+                                        paste("Intervalo: [", a, ", ∞)"),
+                                        paste("Intervalo: [", a, ",", b, "]")
+                                 ))),
+        caption = paste("Área aproximada:", round(area, 6)),
         x = "x", y = "f(x)"
-      ) +
-      theme_minimal()
+      )
+    if (!is.infinite(a)) {
+      g <- g + geom_vline(xintercept = a, linetype = "dashed", color = "red")
+    }
+    if (!is.infinite(b)) {
+      g <- g + geom_vline(xintercept = b, linetype = "dashed", color = "blue")
+    }
+    
+  
+    g
+  })
+  
+  output$nota_metodo <- renderUI({
+    req(input$metodo) 
+    
+    if (input$metodo == "Cuadrados Medios") {
+      return(
+        div(
+          style = "
+          background-color:#fff3cd;
+          border-left: 6px solid #ffcc00;
+          padding:12px;
+          margin-top:10px;
+          border-radius:8px;
+          color:#856404;
+          font-family:'Poppins';
+        ",
+          strong("Nota sobre el método de Cuadrados Medios:"),
+          p("Este método no genera números pseudoaleatorios uniformes de buena calidad. 
+           Su ciclo es extremadamente corto y tiende a degenerarse rápidamente, por lo que 
+           NO es recomendable para aproximaciones por Monte Carlo.")
+        )
+      )
+    }
+    
+    if (input$metodo == "Lehmer") {
+      return(
+        div(
+          style = "
+          background-color:#fde2e4;
+          border-left: 6px solid #ff6b6b;
+          padding:12px;
+          margin-top:10px;
+          border-radius:8px;
+          color:#7a0000;
+          font-family:'Poppins';
+        ",
+          strong("Nota sobre el método de Lehmer:"),
+          p("En este método, la secuencia generada puede presentar comportamientos particulares 
+     que afectan la calidad de los valores pseudoaleatorios. 
+     Debido a ello, las aproximaciones por Monte Carlo podrían no ser tan precisas al 
+     compararse con otros métodos de generación.")
+        )
+      )
+    }
+    
+    return(NULL)
+  })
+  
+  output$valores_mc <- renderText({
+    req(input$calcular)
+    
+    datos_mc <- valores_mc_data()
+    
+    aprox_final <- attr(datos_mc, "aprox_final")
+    teorico     <- attr(datos_mc, "teorico")
+    
+    paste0(
+      "Aproximación Monte Carlo: ", round(aprox_final, 6), "\n",
+      "Valor teórico: ",
+      ifelse(is.na(teorico), "No disponible (la integral puede divergir o no pudo ser calculada)",
+             round(teorico, 6))
+    )
+  })
+    
+  
+  valores_mc_data <- eventReactive(input$calcular, {
+    req(input$calcular)
+  
+    f <- function(x) eval(parse(text = input$funcion))
+    a <- ifelse(input$inf_inf, -Inf, input$lim_inf)
+    b <- ifelse(input$sup_inf,  Inf,  input$lim_sup)
+    
+    
+    secuencia <- seq(100, 10000, by = 250)
+  
+    # Cálculo de aproximaciones Monte Carlo
+    # -------------------------------------------
+    aprox <- sapply(secuencia, function(k) {
+      u <- generar_aleatorios_integral(n = k, metodo = input$metodo)
+      
+      # Casos según tipo de intervalo
+      if (a == 0 && b == 1) {
+        # [0,1]
+        return(mean(sapply(u, f)))
+        
+      } else if (a > -Inf && b == Inf) {
+        # [a, +∞)
+        h <- function(y) {
+          y <- pmin(pmax(y, 1e-6), 1 - 1e-6)
+          x <- (1 / y) - 1 + a
+          f(x) / y^2
+        }
+        return(mean(sapply(u, h)))
+        
+      } else if (a == -Inf && b < Inf) {
+        # (-∞, b]
+        h <- function(y) {
+          y <- pmin(pmax(y, 1e-6), 1 - 1e-6)
+          x <- b - ((1 / y) - 1)
+          f(x) / y^2
+        }
+        return(mean(sapply(u, h)))
+        
+      } else if (a == -Inf && b == Inf) {
+        # (-∞, +∞)
+        h_pos <- function(y) {
+          y <- pmin(pmax(y, 1e-6), 1 - 1e-6)
+          x <- (1 / y) - 1
+          f(x) / y^2
+        }
+        h_neg <- function(y) {
+          y <- pmin(pmax(y, 1e-6), 1 - 1e-6)
+          x <- -((1 / y) - 1)
+          f(x) / y^2
+        }
+        return(mean(sapply(u, h_pos)) + mean(sapply(u, h_neg)))
+        
+      } else {
+        # [a, b] finito
+        x_vals <- a + (b - a) * u
+        return(mean((b - a) * sapply(x_vals, f)))
+      }
+    })
+    
+    # Cálculo del valor teórico (si existe)
+    
+    teorico <- tryCatch(
+      integrate(f, lower = a, upper = b)$value,
+      error = function(e) NA
+    )
+    
+    # Construimos tabla larga para el gráfico
+    dt <- data.table(
+      Aleatorios = rep(secuencia, times = 2),
+      Etiqueta   = rep(c("Aproximación", "Teórico"), each = length(secuencia)),
+      Valor      = c(aprox, rep(teorico, length(secuencia)))
+    )
+    
+    attr(dt, "aprox_final") <- tail(aprox, 1)
+    attr(dt, "teorico")     <- teorico
+    
+    dt
   })
   
   # Aproximación por método de Monte Carlo
   output$graf_aprox01 <- renderPlot({
-    req(input$calcular)  # Asegura que haya sido presionado
-    secuencia <- seq(100, 10000, by = 250)
-    f <- function(x) eval(parse(text = input$funcion))
-    a <- input$lim_inf
-    b <- input$lim_sup
+    req(input$calcular) 
+    datos_mc <- valores_mc_data()
     
-    valores <- eventReactive(input$calcular, {
-      if (a == 0 && b == 1) {
-        aprox <- sapply(secuencia, function(k) {
-          res <- generar_aleatorios_integral(n = k, metodo = input$metodo)
-          mean(sapply(res, f))
-        })
-        teorico <- integrate(f, lower = 0, upper = 1)$value
-      } else if (b >= 99999 && a > -99999) {
-        # [a, ∞)
-        h <- function(y) {
-          if (y <= 0 || y >= 1) return(0)
-          x <- (1/y) - 1 + a
-          return(f(x) / y^2)
-        }
-        aprox <- sapply(secuencia, function(k) {
-          y_vals <- generar_aleatorios_integral(n = k, metodo = input$metodo)
-          y_vals <- pmin(pmax(y_vals, 1e-6), 1 - 1e-6)
-          mean(sapply(y_vals, h))
-        })
-        teorico <- tryCatch(integrate(f, lower = a, upper = Inf)$value, error = function(e) NA)
-      } else if (a <= -99999 && b < 99999) {
-        # (-∞, b]
-        h <- function(y) {
-          if (y <= 0 || y >= 1) return(0)
-          x <- b - ((1 / y) - 1)
-          return(f(x) / y^2)
-        }
-        aprox <- sapply(secuencia, function(k) {
-          y_vals <- generar_aleatorios_integral(n = k, metodo = input$metodo)
-          y_vals <- pmin(pmax(y_vals, 1e-6), 1 - 1e-6)
-          mean(sapply(y_vals, h))
-        })
-        teorico <- tryCatch(integrate(f, lower = -Inf, upper = b)$value, error = function(e) NA)
-      } else if (a <= -99999 && b >= 99999) {
-        # (-∞, ∞)
-        h_pos <- function(y) {
-          if (y <= 0 || y >= 1) return(0)
-          x <- (1 / y) - 1
-          return(f(x) / y^2)
-        }
-        h_neg <- function(y) {
-          if (y <= 0 || y >= 1) return(0)
-          x <- -((1 / y) - 1)
-          return(f(x) / y^2)
-        }
-        aprox <- sapply(secuencia, function(k) {
-          y_vals <- generar_aleatorios_integral(n = k, metodo = input$metodo)
-          y_vals <- pmin(pmax(y_vals, 1e-6), 1 - 1e-6)
-          mean(sapply(y_vals, h_pos)) + mean(sapply(y_vals, h_neg))
-        })
-        teorico <- tryCatch({
-          integrate(f, lower = -Inf, upper = Inf)$value
-        }, error = function(e) NA)
-      } else {
-        aprox <- sapply(secuencia, function(k) {
-          res <- a + (b - a) * generar_aleatorios_integral(n = k, metodo = input$metodo)
-          mean(sapply(res, function(x) (b - a) * f(x)))
-        })
-        teorico <- tryCatch(integrate(f, lower = a, upper = b)$value, error = function(e) NA)
-      }
-      return(data.table(Aproximacion = aprox, Teorico = teorico))
-    })
-    
-    
-    valores() %>%
-      gather(key = "Etiqueta", value = "Valor") %>%
-      mutate(Aleatorios = rep(secuencia, times = 2)) %>%
-      ggplot(aes(x = Aleatorios, y = Valor, group = Etiqueta, colour = Etiqueta)) +
-      geom_line() + theme_minimal()
+    ggplot(datos_mc, aes(x = Aleatorios, y = Valor, colour = Etiqueta)) +
+      geom_line(linewidth = 1) +
+      theme_minimal() +
+      labs(
+        title = "Aproximación por Monte Carlo vs. valor teórico",
+        x = "Cantidad de números aleatorios",
+        y = "Valor"
+      )
   })
+      
+  observe({
+    if (input$inf_inf) {
+      disable("lim_inf")
+      updateNumericInput(session, "lim_inf", value = NA)
+    } else {
+      enable("lim_inf")
+      if (is.na(input$lim_inf)) {
+        updateNumericInput(session, "lim_inf", value = 0)
+      }
+    }
+  })
+  
+  observe({
+    if (input$sup_inf) {
+      disable("lim_sup")
+      updateNumericInput(session, "lim_sup", value = NA)
+    } else {
+      enable("lim_sup")
+      if (is.na(input$lim_sup)) {
+        updateNumericInput(session, "lim_sup", value = 1)
+      }
+    }
+  })
+  
+  #-----------------------------
+  
+  #======= Anita
   
   #Pestaña Variables Discretas
   # Pestaña Variables Discretas - Versión corregida
