@@ -1,0 +1,129 @@
+---
+title: "Informe de Generación de Números Aleatorios"
+subtitle: 'Método: `r params$metodo`'
+output: 
+  html_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    theme: cerulean
+params:
+  metodo: NA
+  num_generar: NA
+  barras: NA
+  semilla: NA
+  constante_a: NA
+  divisor_m: NA
+  c_val: NA
+  k_val: NA
+  n_val: NA
+  datos_generados: NULL
+---
+
+```{r setup, include=FALSE}
+# Configuración inicial del chunk
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(knitr)
+library(dplyr)
+```
+
+
+## Introducción
+
+Este documento presenta el informe técnico y los resultados obtenidos de la generación de `r params$num_generar` números aleatorios a través del método de `r params$metodo` en el simulador. Los números generados se encuentran en el intervalo $(0, 1)$.
+
+## Parámetros de Simulación
+
+Los números aleatorios fueron generados utilizando la configuración de entrada provista por el usuario.
+
+**Método:** `r params$metodo`
+
+```{r}
+# Función para crear filas de la tabla de parámetros
+crear_fila <- function(nombre, valor, unidad = "") {
+  if (!is.null(valor)) {
+    data.frame(Parametro = nombre, Valor = paste0(valor, " ", unidad))
+  } else {
+    NULL
+  }
+}
+
+# Tabla de parámetros generales
+metodo <- params$metodo
+df_general <- data.frame(Parametro = c("Método Empleado", "Cantidad de Valores Generados", "Barras del Histograma"), 
+                         Valor = c(metodo, params$num_generar, params$barras))
+
+# Construcción de la tabla de parámetros específicos por método
+df_especifico <- switch(metodo,
+  "Congruencial Multiplicativo" = bind_rows(
+    crear_fila("Semilla ($X_0$)", params$semilla),
+    crear_fila("Constante Multiplicativa ($a$)", params$constante_a),
+    crear_fila("Módulo ($m$)", params$divisor_m)
+  ),
+  "Congruencial Mixto" = bind_rows(
+    crear_fila("Semilla ($X_0$)", params$semilla),
+    crear_fila("Constante Multiplicativa ($a$)", params$constante_a),
+    crear_fila("Constante Aditiva ($c$)", params$c_val),
+    crear_fila("Módulo ($m$)", params$divisor_m)
+  ),
+  "Cuadrados Medios" = bind_rows(
+    crear_fila("Semilla ($X_0$)", params$semilla),
+    crear_fila("Número de Dígitos ($k$)", params$k_val)
+  ),
+  "Lehmer" = bind_rows(
+    crear_fila("Semilla ($X_0$)", params$semilla),
+    crear_fila("Número de Dígitos ($n$)", params$n_val),
+    crear_fila("Constante ($c$)", params$c_val)
+  )
+)
+
+# Imprimir la tabla
+kable(df_especifico, caption = "Parámetros Específicos del Método", format = "html")
+```
+
+## Resultados Generados
+### Distribución (Gráfico)
+
+El siguiente histograma muestra la distribución de frecuencias de los `r params$num_generar` valores obtenidos. Una distribución uniforme es esperada si el generador es adecuado.
+
+```{r histograma, fig.width=9, fig.height=6}
+# Recuperar datos y parámetros para generar el gráfico
+x <- params$datos_generados
+if (length(x) == 0) {
+    # Si no hay datos, muestra un mensaje de advertencia en lugar del gráfico
+    cat("⚠️ ADVERTENCIA: No se generaron números aleatorios con los parámetros seleccionados o la simulación falló.")
+} else {
+    # Continúa con la generación del plot solo si hay datos
+    bins_count <- as.integer(params$barras)
+    metodo_nombre <- params$metodo
+    
+    # Generación del plot (mismo código que en el server de Shiny)
+    bins <- seq(min(x), max(x), length.out = bins_count + 1)
+    hist(x, breaks = bins, col = "#00CD00", border = 'white', 
+         xlab = 'Números aleatorios generados', 
+         main = paste('Histograma del Método: ', metodo_nombre),
+         ylab = 'Frecuencia')
+}
+```
+
+### Valores (Tabla de Datos)
+
+Se presentan los primeros $\min(100, \text{Cantidad de Números})$ valores generados por el método seleccionado.
+
+```{r}
+# *** 🚨 NUEVA VERIFICACIÓN DE DATOS 🚨 ***
+if (length(params$datos_generados) == 0) {
+    cat("⚠️ No hay datos disponibles para mostrar la tabla.")
+} else {
+    # Tomar los primeros 100 valores o todos si son menos
+    datos_tabla <- data.frame(
+      Índice = 1:length(params$datos_generados),
+      Valor_Generado = params$datos_generados
+    ) %>% head(100)
+    
+    kable(datos_tabla, 
+          digits = 8, 
+          caption = paste("Muestra de los primeros", nrow(datos_tabla), "números aleatorios"), 
+          format = "html")
+}
+```
