@@ -11,8 +11,28 @@ library(DT)
 fluidPage(
   
   # Application title
-  titlePanel(HTML("<h1 style='font-family: Poppins; font-weight:bold; color: #1F4E79;'>Números Aleatorios</h1>")),
-  
+  titlePanel(HTML("
+      <div style='width:100%;'>
+        <h1 style='font-family:Poppins; font-weight:bold; color:#1F4E79;
+                   text-align:center; margin-bottom:2px;'>
+          Números Aleatorios
+        </h1>
+
+        <h4 style='text-align:left; color:#132b60;
+                    font-family:\"Times New Roman\"; font-weight:bold;
+                    margin-top:5px; margin-bottom:0;'>
+          Aplicativo Grupal
+        </h4>
+
+        <h4 style='text-align:left; color:#132b60;
+                  font-family:\"Times New Roman\"; font-weight:bold;
+                    margin-top:5px; margin-bottom:0;'>
+          Aldás Ana — Iniquinga Mateo — Torres Emely
+        </h4>
+
+      </div>
+    ")
+  ),
   tabsetPanel(
     tabPanel("Números Aleatorios",
              
