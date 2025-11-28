@@ -5,6 +5,7 @@ library(ggplot2)
 library(lubridate)
 library(tidyverse)
 library(shinyjs)
+library(DT)
 
 # Define UI for application that draws a histogram
 fluidPage(
@@ -34,16 +35,20 @@ fluidPage(
     
                    actionButton("mostrar", "Mostrar resultados", class = "btn-danger", 
                                 style = "color : #F0FFF0; background-color: #EE0000; border-color: #F0FFF0", 
-                                icon("eye"))
+                                icon("eye")),
+                   br(), 
+                   downloadButton("reporte_aleatorios", "Descargar Reporte HTML", 
+                                  style = "color : #add8e60; background-color: #add8e60; border-color: #F0FFF0")
                  )
-                ),
+                 )
+                ,
                # Show a plot of the generated distribution
                mainPanel(
                  h4(style = "font-weight: bold;", "Números aleatorios generados:"),
                  br(),
                  conditionalPanel(condition = "input.mostrar!=0",
                                   div(style = "max-height: 300px; overflow-y: scroll;",
-                                      uiOutput("tabla")
+                                      dataTableOutput("tabla")
                                   ),
                                   br(),
                                   h4(style = "font-weight: bold;", "Gráfico:"),
@@ -56,9 +61,10 @@ fluidPage(
                                                        min = 5, max = 50, value = 10)
                                     )
                                     )
-                                   )
-               )
-             )
+                 )
+                                  
+                           )
+    )
     ),
     tabPanel("Integrales",
              useShinyjs(),
@@ -85,7 +91,8 @@ fluidPage(
                  actionButton("calcular", "Calcular Área",
                               class = "btn-lg btn-success",
                               style = "color : #F0FFF0; background-color: #9ACD32; border-color: #8B8B83",
-                              icon("chart-area"))
+                              icon("chart-area")),
+                 
                ),
                
                mainPanel(
@@ -122,7 +129,11 @@ fluidPage(
                          plotOutput("graf_aprox01", height = "320px")
                        )
                      )
-                   )
+                   ),
+                   br(),
+                   downloadButton("reporte_integrales", "Descargar Reporte de Integrales",
+                                  style = "color : #add8e60; background-color: #add8e60; border-color: #F0FFF0")
+                   
                  )
                )
              )
@@ -274,4 +285,3 @@ fluidPage(
     )
   )
 )
-
