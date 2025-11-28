@@ -4,11 +4,12 @@ library(data.table)
 library(ggplot2)
 library(lubridate)
 library(tidyverse)
+library(quarto)
+library(DT)
 
 
 #============= Emely
 # Números Aleatorios
-
 
 #función que genera números aleatorios bajo el método congruencial multiplicativo
 mm <- function(x0, a, m) {
@@ -67,8 +68,6 @@ ml_sim <- function(x0, n, c, nsim) {
   }
   return(vec[-1] / (10^n))
 }
-
-
 
 #-----------------------
 
@@ -296,7 +295,130 @@ rechazo_personalizado <- function(nval, f_texto, g_texto, g_gen_texto, c_valor) 
 }
 
 #---------------
+# =========================
+# FUNCIONES GENERADORAS
+# =========================
 
+grafico_bin <- function(x) {
+  hist(x, breaks = 30, col = "aquamarine",
+       main = "Distribución Binomial Simulada",
+       xlab = "Valores", ylab = "Frecuencia")
+}
+
+grafico_pois <- function(x) {
+  hist(x, breaks = 30, col = "orchid",
+       main = "Distribución Poisson Simulada",
+       xlab = "Valores", ylab = "Frecuencia")
+}
+
+grafico_inv <- function(x) {
+  hist(x, breaks = 30, col = "lightblue",
+       main = "Distribución Transformada Inversa",
+       xlab = "Valores", ylab = "Frecuencia")
+}
+
+grafico_rechazo <- function(x) {
+  hist(x, breaks = 30, col = "lightgreen",
+       main = "Distribución Aceptación y Rechazo",
+       xlab = "Valores", ylab = "Frecuencia")
+}
+
+grafico_composicion <- function(x) {
+  hist(x, breaks = 30, col = "lightcoral",
+       main = "Distribución Composición",
+       xlab = "Valores", ylab = "Frecuencia")
+}
+
+#--------
+grafico_bin <- function(sim_data, n, p) {
+  df_sim <- data.frame(x = sim_data)
+  
+  # Distribución teórica
+  x_teo <- 0:n
+  y_teo <- dbinom(x_teo, size = n, prob = p)
+  df_teo <- data.frame(x = x_teo, y = y_teo * length(sim_data)) # Escalar a frecuencia
+  
+  ggplot(df_sim, aes(x = x)) +
+    geom_histogram(aes(y = after_stat(count)), bins = n + 1, fill = "lightblue", color = "black", alpha = 0.7) +
+    geom_point(data = df_teo, aes(x = x, y = y), color = "red", size = 3) +
+    geom_segment(data = df_teo, aes(x = x, xend = x, y = 0, yend = y), color = "red", linewidth = 1, linetype = "dashed") +
+    scale_x_continuous(breaks = x_teo) +
+    labs(
+      title = paste("Simulación Binomial (n=", n, ", p=", p, ")"),
+      x = "Número de Éxitos (X)",
+      y = "Frecuencia Observada"
+    ) +
+    theme_minimal()
+}
+
+# Función de gráfico base (Poisson)
+grafico_pois <- function(sim_data, lambda) {
+  df_sim <- data.frame(x = sim_data)
+  
+  # Rango para la teórica
+  max_x <- max(sim_data) + 1
+  x_teo <- 0:max_x
+  y_teo <- dpois(x_teo, lambda = lambda)
+  df_teo <- data.frame(x = x_teo, y = y_teo * length(sim_data)) # Escalar a frecuencia
+  
+  ggplot(df_sim, aes(x = x)) +
+    geom_histogram(aes(y = after_stat(count)), binwidth = 1, fill = "lightblue", color = "black", alpha = 0.7) +
+    geom_point(data = df_teo, aes(x = x, y = y), color = "red", size = 3) +
+    geom_segment(data = df_teo, aes(x = x, xend = x, y = 0, yend = y), color = "red", linewidth = 1, linetype = "dashed") +
+    scale_x_continuous(breaks = x_teo) +
+    labs(
+      title = paste("Simulación Poisson (λ=", lambda, ")"),
+      x = "Número de Eventos (X)",
+      y = "Frecuencia Observada"
+    ) +
+    theme_minimal()
+}
+
+# Gráfico para métodos basados en PMF (Transformada Inversa, AyR, Composición)
+grafico_pmf <- function(sim_data, pmf, titulo) {
+  df_sim <- data.frame(x = sim_data)
+  
+  # Rango de valores (asumimos que los valores generados son 0, 1, 2, ...)
+  unique_x <- sort(unique(sim_data))
+  
+  # Teórica (se asume que la pmf está indexada desde 0)
+  x_teo <- 0:(length(pmf)-1)
+  y_teo <- pmf
+  df_teo <- data.frame(x = x_teo, y = y_teo * length(sim_data)) # Escalar a frecuencia
+  
+  ggplot(df_sim, aes(x = x)) +
+    geom_histogram(aes(y = after_stat(count)), binwidth = 1, fill = "lightblue", color = "black", alpha = 0.7) +
+    geom_point(data = df_teo, aes(x = x, y = y), color = "red", size = 3) +
+    geom_segment(data = df_teo, aes(x = x, xend = x, y = 0, yend = y), color = "red", linewidth = 1, linetype = "dashed") +
+    scale_x_continuous(breaks = unique_x) +
+    labs(
+      title = paste("Simulación -", titulo),
+      x = "Valor de la Variable Aleatoria (X)",
+      y = "Frecuencia Observada"
+    ) +
+    theme_minimal()
+}
+
+grafico_inv <- function(sim_data) {
+  pmf <- c(0.2, 0.3, 0.5) # Usamos el PMF de ejemplo
+  grafico_pmf(sim_data, pmf, "Transformada Inversa")
+}
+
+grafico_rechazo <- function(sim_data) {
+  pmf <- c(0.2, 0.3, 0.5) # Usamos el PMF de ejemplo
+  grafico_pmf(sim_data, pmf, "Aceptación y Rechazo")
+}
+
+grafico_composicion <- function(sim_data) {
+  # En el método de Composición, si no se definen las PMF en la UI, se usa un ejemplo de mezcla de dos.
+  # Aquí asumimos que la distribución resultante se conoce para el plot.
+  # Dado que no hay inputs para pmf1 y pmf2 en la UI, este gráfico es solo ilustrativo.
+  # Usaremos una PMF de ejemplo simple para el plot:
+  pmf_ejemplo <- c(0.1, 0.2, 0.3, 0.4)
+  grafico_pmf(sim_data, pmf_ejemplo, "Composición")
+}
+#-------
+#------------------
 function(input, output, session) {
   
   #======= Emely
@@ -354,36 +476,83 @@ function(input, output, session) {
     }
   })
   
-  output$tabla <- renderUI({
+  output$tabla <- DT::renderDataTable({
     res <- aleatorios()
     req(res)
     
+    data.frame(Valor = res)
     
-    num_cols <- ceiling(sqrt(length(res)))  
-    n_rows <- ceiling(length(res) / num_cols)
-    
-    res <- c(res, rep(NA, n_rows * num_cols - length(res)))
-    
-    matrix_data <- matrix(res, nrow = n_rows, ncol = num_cols, byrow = TRUE)
-    colnames(matrix_data) <- paste("Col", 1:num_cols)  
-    
-    table_html <- kbl(matrix_data, escape = FALSE) %>%
-      kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover", "bordered"), 
-                    position = "left", font_size = 14) %>%
-      row_spec(0, background = "#40E0D0", color = "white", bold = TRUE)
-    
-    # Retornar el HTML como un objeto renderizado en UI
-    HTML(table_html)
-  })
+  }, options = list(
+    pageLength = 10,
+    lengthMenu = c(5, 10, 20, 50, 100),
+    searching = TRUE,
+    paging = TRUE,
+    info = TRUE
+  ))
+  
   
   output$distPlot <- renderPlot({
     x <- aleatorios()
     bins <- seq(min(x), max(x), length.out = input$barras + 1)
-    hist(x, breaks = bins, col = "#00CD00", border = 'white', 
+    hist(x, breaks = bins, col = "lightcoral", border = 'white', 
          xlab = 'Numeros aleatorios generados', 
          main = paste('Histograma del Método: ', input$metodo),
          ylab = 'Frecuencia')  
   })
+  
+  # GENERAR EL REPORTE HTML
+  output$reporte_aleatorios <- downloadHandler(
+    
+    filename = function() {
+      nombre_base <- paste("Reporte_Numeros_Aleatorios_", gsub(" ", "_", input$metodo), ".html", sep = "")
+      return(nombre_base)
+    },
+    
+    content = function(file) {
+      
+      if (!requireNamespace("rmarkdown", quietly = TRUE)) {
+        stop("El paquete 'rmarkdown' es necesario. Por favor, instálalo.")
+      }
+      
+      req(input$mostrar > 0)
+      temp_data <- aleatorios()
+      
+      params_reporte <- list(
+        metodo = input$metodo,
+        num_generar = input$num,
+        barras = input$barras,
+        
+        semilla = if (input$metodo %in% c("Congruencial Multiplicativo", "Congruencial Mixto")) input$semilla else input$x0,
+        
+        constante_a = if (input$metodo %in% c("Congruencial Multiplicativo", "Congruencial Mixto")) input$constante else NULL,
+        
+        divisor_m = if (input$metodo %in% c("Congruencial Multiplicativo", "Congruencial Mixto")) input$divisor else NULL,
+        
+        c_val = if (input$metodo == "Congruencial Mixto" || input$metodo == "Lehmer") input$c else NULL,
+        
+        k_val = if (input$metodo == "Cuadrados Medios") input$k else NULL,
+        
+        n_val = if (input$metodo == "Lehmer") input$n else NULL,
+        
+        # Datos Generados
+        datos_generados = temp_data
+      )
+      
+      if (!requireNamespace("rmarkdown", quietly = TRUE)) {
+        stop("El paquete 'rmarkdown' es necesario. Por favor, instálalo.")
+      }
+      
+      rmarkdown::render(
+        input = "reporte_aleatorios.qmd", # Tu archivo de reporte
+        output_file = file,
+        output_format = "html_document",  # Especificar el formato HTML
+        params = params_reporte,
+        envir = new.env(parent = globalenv())
+        )
+    }
+  )
+  
+  
   
   #------------------
   #Integrales
@@ -761,6 +930,49 @@ function(input, output, session) {
     }
   })
   
+  # GENERAR EL REPORTE DE INTEGRALES
+  output$reporte_integrales <- downloadHandler(
+    
+    filename = function() {
+      paste("Reporte_Integral_", gsub(" ", "_", input$metodo), ".html", sep = "")
+    },
+    
+    content = function(file) {
+      
+      req(input$calcular)
+    
+      data_mc <- valores_mc_data() 
+      aprox_final <- attr(data_mc, "aprox_final")
+      teorico <- attr(data_mc, "teorico")
+      
+      area_trapezoidal <- area_aprox()
+      
+      a_lim <- ifelse(input$inf_inf, -Inf, input$lim_inf)
+      b_lim <- ifelse(input$sup_inf, Inf, input$lim_sup)
+      
+      params_reporte_int <- list(
+        funcion = input$funcion,
+        lim_inf = a_lim,
+        lim_sup = b_lim,
+        metodo_aleatorios = input$metodo,
+        
+        # Resultados
+        aprox_mc = aprox_final,
+        aprox_trapezoidal = area_trapezoidal,
+        valor_teorico = teorico,
+        
+        # Datos para el Gráfico
+        data_mc_plot = data_mc
+      )
+      
+      rmarkdown::render("reporte_integrales.qmd",
+                        output_file = file,
+                        output_format = "html_document", 
+                        params = params_reporte_int,
+                        envir = new.env(parent = globalenv())
+      )
+    }
+  )
   #-----------------------------
   
   #======= Anita
@@ -810,6 +1022,130 @@ function(input, output, session) {
       )
     }
   })
+  sim_data_discretas <- reactive({
+    req(input$distribucion)
+    
+    # Define PMFs de ejemplo para TI, AyR, Composición (deberían ser inputs reales en la versión final)
+    # Por simplicidad, usamos los valores definidos en las funciones
+    pmf_ti <- c(0.2, 0.3, 0.5)
+    pmf_ayr <- c(0.2, 0.3, 0.5)
+    qmf_ayr <- c(0.4, 0.4, 0.2) # Debe cumplir sum(qmf) = 1
+    pmf_comp1 <- c(0.1, 0.9)
+    pmf_comp2 <- c(0.5, 0.5)
+    
+    if (input$distribucion == "Binomial") {
+      req(input$calc_bin > 0, input$n_bin, input$p_bin, input$num_bin)
+      x <- sim_bin() # Datos simulados
+      n <- input$n_bin
+      p <- input$p_bin
+      
+      # Estadísticas Teóricas
+      teo_media <- n * p
+      teo_varianza <- n * p * (1 - p)
+      
+      # Plot
+      plot_obj <- grafico_bin(x, n, p)
+      
+      # Parámetros para el reporte
+      params_reporte <- paste0("n = ", n, ", p = ", p)
+      
+    } else if (input$distribucion == "Poisson") {
+      req(input$calc_pois > 0, input$lambda, input$num_pois)
+      x <- sim_pois()
+      lambda <- input$lambda
+      
+      # Estadísticas Teóricas
+      teo_media <- lambda
+      teo_varianza <- lambda
+      
+      # Plot
+      plot_obj <- grafico_pois(x, lambda)
+      
+      # Parámetros para el reporte
+      params_reporte <- paste0("λ = ", lambda)
+      
+    } else if (input$distribucion == "Transformada Inversa") {
+      req(input$calc_inv > 0, input$num_inv)
+      x <- sim_inv()
+      pmf <- pmf_ti
+      
+      # Estadísticas Teóricas (Media = sum(x * p(x)), Varianza = sum(x^2 * p(x)) - media^2)
+      valores_x <- 0:(length(pmf) - 1)
+      teo_media <- sum(valores_x * pmf)
+      teo_varianza <- sum(valores_x^2 * pmf) - teo_media^2
+      
+      # Plot
+      plot_obj <- grafico_pmf(x, pmf, "Transformada Inversa")
+      
+      # Parámetros para el reporte
+      params_reporte <- paste0("PMF = c(", paste(pmf, collapse = ", "), ")")
+      
+    } else if (input$distribucion == "Aceptación y Rechazo") {
+      req(input$calc_rechazo > 0, input$num_rechazo)
+      x <- sim_rechazo()
+      pmf <- pmf_ayr
+      qmf <- qmf_ayr
+      
+      # Estadísticas Teóricas (asumimos que la PMF objetivo es la pmf_ayr)
+      valores_x <- 0:(length(pmf) - 1)
+      teo_media <- sum(valores_x * pmf)
+      teo_varianza <- sum(valores_x^2 * pmf) - teo_media^2
+      
+      # Plot
+      plot_obj <- grafico_pmf(x, pmf, "Aceptación y Rechazo")
+      
+      # Parámetros para el reporte
+      params_reporte <- paste0("PMF (Objetivo) = c(", paste(pmf, collapse = ", "), ")",
+                               "; QMF (Propuesta) = c(", paste(qmf, collapse = ", "), ")")
+      
+    } else if (input$distribucion == "Composición") {
+      req(input$calc_composicion > 0, input$num_composicion, input$alpha)
+      # Nota: La función fun_composicion usa sample(), pero aquí la simularemos con los datos generados
+      # x <- sim_composicion() # Esto requiere input$pmf1 y input$pmf2, que no están en la UI
+      
+      # Para evitar el error por inputs faltantes, usamos una simulación directa aquí si es necesario, 
+      # o asumimos que sim_composicion() funciona con los datos de ejemplo (o si los inputs se agregaron)
+      # Usaremos la pmf resultante de la mezcla teórica para los stats
+      alpha <- input$alpha
+      pmf_final <- alpha * pmf_comp1 + (1 - alpha) * pmf_comp2
+      x <- replicate(input$num_composicion, fun_composicion(pmf_comp1, pmf_comp2, alpha))
+      
+      # Estadísticas Teóricas (usando la PMF resultante)
+      valores_x <- 1:length(pmf_final) # Asumimos índice 1, 2, ...
+      # Se necesita ajustar si fun_composicion devuelve 1, 2, ... o 0, 1, ...
+      # sample(1:length(pmf), 1, prob = pmf) devuelve 1, 2, ...
+      
+      teo_media <- sum(valores_x * pmf_final)
+      teo_varianza <- sum(valores_x^2 * pmf_final) - teo_media^2
+      
+      # Plot
+      plot_obj <- grafico_pmf(x, pmf_final, "Composición")
+      
+      # Parámetros para el reporte
+      params_reporte <- paste0("PMF 1 = c(", paste(pmf_comp1, collapse = ", "), ")", 
+                               "; PMF 2 = c(", paste(pmf_comp2, collapse = ", "), ")",
+                               "; α = ", alpha)
+    } else {
+      return(NULL)
+    }
+    
+    # Estadísticas Simuladas
+    sim_media <- mean(x)
+    sim_varianza <- var(x)
+    
+    list(
+      sim_data = x,
+      sim_media = sim_media,
+      sim_varianza = sim_varianza,
+      teo_media = teo_media,
+      teo_varianza = teo_varianza,
+      metodo = input$distribucion,
+      simulaciones = length(x),
+      parametros = params_reporte,
+      plot = plot_obj
+    )
+  })
+  
   
   # Funciones para manejar las distribuciones discretas
   sim_bin <- eventReactive(input$calc_bin, {
@@ -819,9 +1155,7 @@ function(input, output, session) {
   
   output$histBin <- renderPlot({
     req(sim_bin())
-    hist(sim_bin(), breaks = 30, col = "aquamarine", 
-         main = "Distribución Binomial Simulada",
-         xlab = "Valores", ylab = "Frecuencia")
+    grafico_bin(sim_bin())
   })
   
   output$statsBin <- renderPrint({
@@ -837,9 +1171,7 @@ function(input, output, session) {
   
   output$histPois <- renderPlot({
     req(sim_pois())
-    hist(sim_pois(), breaks = 30, col = "orchid", 
-         main = "Distribución Poisson Simulada",
-         xlab = "Valores", ylab = "Frecuencia")
+    grafico_pois(sim_pois())
   })
   
   output$statsPois <- renderPrint({
@@ -859,10 +1191,8 @@ function(input, output, session) {
   })
   
   output$histInv <- renderPlot({
-    req(sim_inv())  # Asegura que la simulación se haya ejecutado correctamente
-    hist(sim_inv(), breaks = 30, col = "lightblue", 
-         main = "Distribución Transformada Inversa",
-         xlab = "Valores", ylab = "Frecuencia")
+    req(sim_inv())
+    grafico_inv(sim_inv())
   })
   
   output$statsInv <- renderPrint({
@@ -884,10 +1214,8 @@ function(input, output, session) {
   })
   
   output$histRechazo <- renderPlot({
-    req(sim_rechazo())  # Asegura que la simulación se haya ejecutado correctamente
-    hist(sim_rechazo(), breaks = 30, col = "lightgreen", 
-         main = "Distribución Aceptación y Rechazo",
-         xlab = "Valores", ylab = "Frecuencia")
+    req(sim_rechazo())
+    grafico_rechazo(sim_rechazo())
   })
   
   output$statsRechazo <- renderPrint({
@@ -904,9 +1232,7 @@ function(input, output, session) {
   
   output$histComposicion <- renderPlot({
     req(sim_composicion())
-    hist(sim_composicion(), breaks = 30, col = "lightcoral", 
-         main = "Distribución Composición",
-         xlab = "Valores", ylab = "Frecuencia")
+    grafico_composicion(sim_composicion())
   })
   
   output$statsComposicion <- renderPrint({
@@ -914,7 +1240,8 @@ function(input, output, session) {
     x <- sim_composicion()
     cat("Media:", mean(x), "\nVarianza:", var(x))
   })
-
+  
+  
    # ================ Mateo
    # ===== TRANSFORMADA INVERSA =====
   
@@ -1172,6 +1499,7 @@ function(input, output, session) {
     
     data.frame(Valor = datos)
   }, options = list(pageLength = 10)) 
+  
   
 }
 
