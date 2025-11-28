@@ -1,0 +1,79 @@
+---
+title: "Reporte de Aproximación de Integrales"
+subtitle: "Método de Monte Carlo"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    theme: cerulean
+params:
+  funcion: NA
+  lim_inf: NA
+  lim_sup: NA
+  metodo_aleatorios: NA
+  aprox_mc: NA
+  aprox_trapezoidal: NA
+  valor_teorico: NA
+  data_mc_plot: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.align = 'center')
+library(ggplot2)
+library(knitr)
+library(data.table)
+```
+
+## Definición del Problema
+
+Este informe documenta la aproximación del valor de la integral definida de la función $f(x) = \text{`r params$funcion`}$ en el intervalo $[\text{`r ifelse(is.infinite(params$lim_inf), '-∞', params$lim_inf)`}, \text{`r ifelse(is.infinite(params$lim_sup), '∞', params$lim_sup)`}]$.
+
+### Parámetros de Integración
+
+- **Función a integrar ($f(x)$)**: $\text{`r params$funcion`}$
+
+- **Límite Inferior ($a$):** $\text{`r ifelse(is.infinite(params$lim_inf), '-∞', params$lim_inf)`}$
+
+- **Límite Superior ($b$):** $\text{`r ifelse(is.infinite(params$lim_sup), '∞', params$lim_sup)`}$
+
+## Métodos de Aproximación y Resultados
+
+Se utilizaron dos métodos principales para calcular el área bajo la curva: el Método de Monte Carlo (usando números pseudoaleatorios).
+
+### Resultados Numéricos
+
+Método de Cálculo: Monte Carlo
+
+Resultado de la aproximación: `r round(params$aprox_mc, 6)`
+
+Valor Teórico (Referencia): `r {
+    if (is.numeric(params$valor_teorico) && !is.na(params$valor_teorico)) {
+        round(params$valor_teorico, 6)
+    } else {
+        'No calculable/Divergente'
+    }
+}`
+
+### 2.2. Detalles del Método Monte Carlo
+El método de Monte Carlo se ejecutó utilizando números pseudoaleatorios generados por el método `r params$metodo_aleatorios`. La calidad de este generador afecta directamente la precisión de la estimación estocástica.
+
+**Gráfico de Convergencia Monte Carlo**
+
+Este gráfico muestra cómo la aproximación de Monte Carlo converge al valor teórico a medida que aumenta la cantidad de números aleatorios utilizados.
+
+```{r}
+# Generar el plot de convergencia
+if (is.null(params$data_mc_plot)) {
+    cat("No hay datos de convergencia para mostrar.")
+} else {
+    ggplot(params$data_mc_plot, aes(x = Aleatorios, y = Valor, colour = Etiqueta)) +
+        geom_line(linewidth = 1) +
+        theme_minimal() +
+        labs(
+            title = "Aproximación por Monte Carlo vs. valor teórico",
+            x = "Cantidad de números aleatorios",
+            y = "Valor de la Integral"
+        )
+}
+```
